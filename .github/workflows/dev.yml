@@ -242,7 +242,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          file: vuln-cicd.tf
+          file: "./qa/"
           args: --severity-threshold=high --report
 
   terraform-apply: 
