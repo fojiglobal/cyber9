@@ -249,6 +249,8 @@ jobs:
     #if: github.event_name == 'push'
     needs: snyk-iac-scan
     runs-on: ubuntu-latest
+    environment:
+      name: aws-prod
     steps:
         - uses: actions/checkout@v4
         - uses: hashicorp/setup-terraform@v3
