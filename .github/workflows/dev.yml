@@ -1,0 +1,272 @@
+
+# name: Deploy Terraform to AWS Dev
+
+# on:
+#   push:
+#     branches:
+#       - main
+#   pull_request:
+#   workflow_dispatch:
+# permissions: write-all
+# contents: read
+# issues: write
+# env: 
+#   AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
+#   AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+
+
+
+# # jobs:
+# #   tf-plan:
+# #     if: github.event_name == 'pull_request'
+# #     name: tfplan
+# #     runs-on: ubuntu-latest
+# #     steps:
+# #       # Step 1: Checkout the repository
+# #       - name: Checkout repository
+# #         #if: github.event_name == 'pull_request'
+# #         uses: actions/checkout@v3
+
+# #       # Step 2: Set up Terraform CLI
+# #       - name: Setup Terraform
+# #         #if: github.event_name == 'pull_request'
+# #         uses: hashicorp/setup-terraform@v2
+
+# #       - name: Initial Terraform
+# #         #if: github.event_name == 'pull_request'
+# #         run: terraform init
+
+# #       - name: Validate Terraform Code
+# #         #if: github.event_name == 'pull_request'
+# #         run: terraform validate
+
+# #       - name: Terraform Plan
+# #         id: plan
+# #         #if: github.event_name == 'pull_request'
+# #         run: terraform plan -input=false -no-color
+# #       - name: add-plan-comment
+# #         id: comment
+# #         uses: actions/github-script@v3
+# #        #if: github.event_name == 'pull_request'
+# #         env:
+# #           PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+# #         with:
+# #           github-token: ${{ secrets.GITHUB_TOKEN }}
+# #           script: |
+# #             const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+# #             #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+# #             #### Terraform Validation 🤖${{ steps.validate.outputs.stdout }}
+# #             #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+        
+# #             <details><summary>Show Plan</summary>
+            
+# #             \`\`\`${process.env.PLAN}\`\`\`
+            
+# #             </details>
+            
+# #             *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Working Directory: \`${{ env.tf_actions_working_dir }}\`, Workflow: \`${{ github.workflow }}\`*`;
+              
+# #             github.issues.createComment({
+# #               issue_number: context.issue.number,
+# #               owner: context.repo.owner,
+# #               repo: context.repo.repo,
+# #               body: output
+# #             })
+# #       - name: Scan Terraform Codes
+# #         if: github.event_name == 'pull_request'
+# #         uses: snyk/actions/iac@master
+# #         env:
+# #           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+# #         # with:
+# #         #   args: --report
+# #         continue-on-error: true
+  
+# #   # tf-scan:
+# #   #   needs: tf-plan
+# #   #   runs-on: ubuntu-latest
+# #   #   if: github.ref == 'refs/heads/main' && github.event_name == 'pull_request'
+# #   #   steps:
+# #   #     - name: Checkout repository
+# #   #       uses: actions/checkout@v3
+        
+# #   #     # Step 2: Set up Terraform CLI
+# #   #     - name: Setup Terraform
+# #   #       uses: hashicorp/setup-terraform@v2
+
+# #   #     - name: Scan Terraform Codes
+# #   #       uses: snyk/actions/iac@master
+# #   #       env:
+# #   #         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+# #   #       # with:
+# #   #       #   args: --report
+# #   #       continue-on-error: true
+
+# #   tf-apply:
+# #     needs: tf-plan
+# #     runs-on: ubuntu-latest
+# #     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+# #     steps:
+# #       - name: Checkout repository
+# #         uses: actions/checkout@v3
+
+# #       # Step 2: Set up Terraform CLI
+# #       - name: Setup Terraform
+# #         uses: hashicorp/setup-terraform@v2
+
+# #       - name: Initial Terraform
+# #         run: terraform init
+
+# #       - name: Terraform Apply
+# #         run: echo "Terraform Apply Successfully"
+
+# This is a basic workflow to help you get started with Actions
+
+name: Provision Terraform
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  # push:
+  #   branches: [ "main" ]
+  # pull_request:
+  #   branches: [ "main" ]
+  workflow_dispatch:
+# permissions:
+#   pull-requests: write
+env:
+    AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
+    AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+    TF_DES: ${{secrets.TF_DESTROY}}
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+defaults:
+  run:
+    shell: bash
+    working-directory: "./qa/"
+jobs:
+  # This workflow contains a single job called "build"
+  
+  terraform-plan:
+    #if: github.ref == 'refs/heads/main' && github.event_name == 'pull_request'
+    #if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform fmt
+        id: fmt
+        run: terraform fmt -check
+
+        #continue-on-error: true ok yes
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -no-color
+      - uses: actions/github-script@v7
+        #if: github.event_name == 'pull_request'
+        env:
+          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // 1. Retrieve existing bot comments for the PR
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            })
+            const botComment = comments.find(comment => {
+              return comment.user.type === 'Bot' && comment.body.includes('Terraform Format and Style')
+            })
+      
+            // 2. Prepare format of the comment
+            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+            <details><summary>Validation Output</summary>
+      
+            \`\`\`\n
+            ${{ steps.validate.outputs.stdout }}
+            \`\`\`
+      
+            </details>
+      
+            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+      
+            <details><summary>Show Plan</summary>
+      
+            \`\`\`\n
+            ${process.env.PLAN}
+            \`\`\`
+      
+            </details>
+      
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Working Directory: \`${{ env.tf_actions_working_dir }}\`, Workflow: \`${{ github.workflow }}\`*`;
+      
+            // 3. If we have a comment, update it, otherwise create a new one
+            if (botComment) {
+              github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: output
+              })
+            } else {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: output
+              })
+            }
+
+  snyk-iac-scan: 
+    needs: terraform-plan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Snky Scan for IaC Misconfiguration
+        uses: snyk/actions/iac@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          file: vuln-cicd.tf
+          args: --severity-threshold=high --report
+
+  terraform-apply: 
+    #if: github.event_name == 'push'
+    needs: snyk-iac-scan
+    runs-on: ubuntu-latest
+    steps:
+        - uses: actions/checkout@v4
+        - uses: hashicorp/setup-terraform@v3
+        - name: Terraform Init
+          id: init
+          run: terraform init
+        - name: Deploy Terraform
+          run: echo "TF Appply" #terraform apply --auto-approve
+
+  # terraform-destroy: 
+  #   if:  always() && github.event_name == 'workflow_dispatch'
+  #   runs-on: ubuntu-latest
+  #   needs: terraform-apply
+  #   steps:
+  #       - uses: actions/checkout@v4
+  #       - uses: hashicorp/setup-terraform@v3
+  #       - name: Terraform Init
+  #         id: init
+  #         run: terraform init
+  #       - name: Destroy Terraform
+  #         run: terraform destroy --auto-approve

@@ -1,0 +1,111 @@
+
+name: Deploy Terraform to AWS Dev
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+permissions: write-all
+# contents: read
+# issues: write
+env: 
+  AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
+  AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+
+jobs:
+  tf-plan:
+    name: tfplan
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout repository
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Terraform CLI
+      - name: Setup Terraform
+        #if: github.event_name == 'pull_request'
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Initial Terraform
+        if: github.event_name == 'pull_request'
+        run: terraform init
+
+      - name: Validate Terraform Code
+        if: github.event_name == 'pull_request'
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        if: github.event_name == 'pull_request'
+        run: terraform plan -input=false -no-color
+      - name: add-plan-comment
+        id: comment
+        uses: actions/github-script@v3
+        if: github.event_name == 'pull_request'
+        env:
+          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+            #### Terraform Validation 🤖${{ steps.validate.outputs.stdout }}
+            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+        
+            <details><summary>Show Plan</summary>
+            
+            \`\`\`${process.env.PLAN}\`\`\`
+            
+            </details>
+            
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Working Directory: \`${{ env.tf_actions_working_dir }}\`, Workflow: \`${{ github.workflow }}\`*`;
+              
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+      - name: Scan Terraform Codes
+        #if: github.event_name == 'pull_request'
+        uses: snyk/actions/iac@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        # with:
+        #   args: --report
+        continue-on-error: true
+
+  tf-apply:
+    needs: tf-plan
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Terraform CLI
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Initial Terraform
+        run: terraform init
+
+      - name: Terraform Apply
+        run: echo "Terraform Apply Successfully"
+      - name: Terraform Destroy
+        env:
+          destroy: ${{secrets.TF_DESTROY}}
+        if: ${{ env.destroy == 'true' }} 
+        run: echo "Terraform Destroyed"
+
+  # tf-destroy:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Terraform Destroy
+  #       env:
+  #         destroy: ${{secrets.TF_DESTROY}}
+  #       if: ${{ env.destroy == 'true' }} 
+  #       run: echo "Terraform Destroyed"
