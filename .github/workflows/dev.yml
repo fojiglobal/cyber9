@@ -147,8 +147,8 @@ jobs:
   # This workflow contains a single job called "build"
   
   terraform-plan:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'pull_request'
-    #if: github.event_name == 'pull_request' && github.ref == 'refs/heads/main' 
+    #if: github.ref == 'refs/heads/main' && github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' 
     runs-on: ubuntu-latest
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
